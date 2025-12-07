@@ -2,34 +2,34 @@ import '../utils/Position.dart';
 
 class Cell {
   
-  late Position _position;
-  late bool _hasMine;
-  late bool _hasFlag;
+  final Position _position;
+  bool _hasMine;
+  bool _hasFlag;
+  bool _isCovered;
+  int _adjacentMines;
 
-  Cell(Position position) {
-    _position = position;
-    _hasMine = false;
-    _hasFlag = false;
-  }
+  Cell(this._position) : 
+    _hasMine = false,
+    _hasFlag = false,
+    _isCovered = true,
+    _adjacentMines = 0;
 
-  Position getPosition() {
-    return _position;
-  }
-
-  bool getHasFlag() {
-    return _hasFlag;
-  }
-
-  void setHasMine(bool value) {
-    _hasMine = value;
-  }
-
-  bool getHasMine() {
-    return _hasMine;
-  }
+  Position getPosition() => _position;
+  
+  bool getHasFlag() => _hasFlag;
+  void setHasMine(bool value) => _hasMine = value;
+  bool getHasMine() => _hasMine;
+  
+  bool isCovered() => _isCovered;
+  void uncover() => _isCovered = false;
+  
+  int getAdjacentMines() => _adjacentMines;
+  void setAdjacentMines(int count) => _adjacentMines = count;
 
   void setupFlag() {
-    _hasFlag = true;
+    if (_isCovered) {
+      _hasFlag = true;
+    }
   }
 
   void removeFlag() {
