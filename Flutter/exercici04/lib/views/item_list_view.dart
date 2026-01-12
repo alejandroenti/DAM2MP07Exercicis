@@ -9,51 +9,40 @@ class ItemListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                data.colors.mainColor,
-                data.colors.secondaryColor
-              ]
-            )
-          ),
-
-          child: Row(
-          children: <Widget>[
-            Padding(padding: EdgeInsetsGeometry.only(right:30)),
-            Image(
-              image: NetworkImage(data.imageUrl),
-              width: 100,
-              height: 100,
-              fit:BoxFit.fill
-            ),
-            Padding(padding: EdgeInsetsGeometry.only(right:10)),
-            Text(
-              data.number,
-              style: TextStyle(
-                fontSize: 60,
-                fontWeight: FontWeight.bold,
-                color: Colors.black
-              ) 
-            ),
-            Padding(padding: EdgeInsetsGeometry.only(right:15)),
-            Text(
-              data.name,
-              style: TextStyle(
-                fontSize: 36,
-                color: Colors.black
-              ),
-            )            
-          ],
-        )
-      )
+    return Container(
+      height: 120,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [data.colors.mainColor, data.colors.secondaryColor],
         ),
-      );
+      ),
+      child: Row(
+        children: <Widget>[
+          const SizedBox(width: 20),
+          Image.network(
+            data.imageUrl,
+            width: 80,
+            height: 80,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 20),
+          Text(
+            data.number,
+            style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Text(
+              data.name,
+              style: const TextStyle(fontSize: 20),
+              overflow: TextOverflow.ellipsis,
+            ),
+          )
+        ],
+      ),
+    );
   }
 
 }

@@ -6,5 +6,5 @@ class ItemListModel {
   final String imageUrl;
   final String number;
 
-  ItemListModel(this.name, this.colors, this.imageUrl, this.number);
+  const ItemListModel(this.name, this.colors, this.imageUrl, this.number);
 }
