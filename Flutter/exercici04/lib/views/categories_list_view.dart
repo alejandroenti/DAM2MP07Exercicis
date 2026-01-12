@@ -1,5 +1,5 @@
 import 'package:exercici04/models/item_list_model.dart';
-import 'package:exercici04/views/item_list_view.dart';
+import 'package:exercici04/views/categories_item_list_view.dart';
 import 'package:flutter/material.dart';
 
 
@@ -16,19 +16,19 @@ class CategoriesListView extends StatelessWidget {
       body: ListView.builder(
         itemCount: items.length,
         itemBuilder: (context, index) {
-          return ItemListView(data: items[index]);
+          return CatergoriesItemListView(data: items[index]);
         },
       ),
     );
   }
 
-  List<ItemListView> createItemsList() {
+  List<CatergoriesItemListView> createItemsList() {
 
-    var itemsWidgets = <ItemListView>[];
+    var itemsWidgets = <CatergoriesItemListView>[];
 
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
-      itemsWidgets.add(ItemListView(data: item));
+      itemsWidgets.add(CatergoriesItemListView(data: item));
     }
     return itemsWidgets;
   }

@@ -1,11 +1,11 @@
 import 'package:exercici04/models/item_list_model.dart';
 import 'package:flutter/material.dart';
 
-class ItemListView extends StatelessWidget {
+class CatergoriesItemListView extends StatelessWidget {
 
   final ItemListModel data;
 
-  const ItemListView({required this.data, super.key});
+  const CatergoriesItemListView({required this.data, super.key});
 
   @override
   Widget build(BuildContext context) {

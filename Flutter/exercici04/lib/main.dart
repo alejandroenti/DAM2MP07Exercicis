@@ -1,7 +1,6 @@
 import 'package:exercici04/models/background_color.dart';
 import 'package:exercici04/models/item_list_model.dart';
 import 'package:exercici04/views/categories_list_view.dart';
-import 'package:exercici04/views/item_list_view.dart';
 import 'package:flutter/material.dart';
 
 void main() {
