@@ -1,8 +1,8 @@
+// lib/views/categories_item_list_view.dart
 import 'package:exercici04/models/item_list_model.dart';
 import 'package:flutter/material.dart';
 
 class CatergoriesItemListView extends StatelessWidget {
-
   final ItemListModel data;
 
   const CatergoriesItemListView({required this.data, super.key});
@@ -10,7 +10,7 @@ class CatergoriesItemListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 120,
+      height: 100,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -19,30 +19,32 @@ class CatergoriesItemListView extends StatelessWidget {
         ),
       ),
       child: Row(
-        children: <Widget>[
-          const SizedBox(width: 20),
-          Image.network(
-            data.imageUrl,
-            width: 80,
-            height: 80,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 20),
-          Text(
-            data.number,
-            style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
-          ),
+        children: [
           const SizedBox(width: 15),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              data.imageUrl,
+              width: 60,
+              height: 60,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.shield, size: 50),
+            ),
+          ),
+          const SizedBox(width: 20),
           Expanded(
             child: Text(
               data.name,
-              style: const TextStyle(fontSize: 20),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
-          )
+          ),
         ],
       ),
     );
   }
-
 }
