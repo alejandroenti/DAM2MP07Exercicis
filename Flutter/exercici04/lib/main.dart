@@ -4,7 +4,7 @@ import 'views/home_mobile.dart';
 
 void main() => runApp(const CineApp());
 
-const String baseUrl = "http://localhost:3000";
+const String baseUrl = "https://alopezhuesca.ieti.site";
 
 class CineApp extends StatelessWidget {
   const CineApp({super.key});
