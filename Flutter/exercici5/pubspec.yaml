@@ -30,9 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dartssh2: ^2.5.0
+  dartssh2: ^2.4.3
   path_provider: ^2.1.2
   archive: ^3.4.10
+  file_picker: ^8.0.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
