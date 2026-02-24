@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:dartssh2/dartssh2.dart';
-import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
 
 class ServerStatsScreen extends StatefulWidget {
