@@ -30,6 +30,7 @@ class _MainScreenState extends State<MainScreen> {
     _loadConfigs();
   }
 
+  // --- LÓGICA ORIGINAL (Mantenida 100%) ---
   Future<void> _loadConfigs() async {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/configuracio.json');
@@ -45,7 +46,9 @@ class _MainScreenState extends State<MainScreen> {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/configuracio.json');
     await file.writeAsString(jsonEncode(servers.map((e) => e.toJson()).toList()));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Configuració guardada")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Configuració guardada"), behavior: SnackBarBehavior.floating)
+    );
   }
 
   void _selectServer(ServerConfig server) {
@@ -62,18 +65,14 @@ class _MainScreenState extends State<MainScreen> {
     if (selectedServer == null) return;
 
     try {
-      // 1. Leer el archivo de la clave privada (id_rsa)
       final keyFile = File(selectedServer!.clau);
       if (!await keyFile.exists()) {
         _showMsg("No s'ha trobat el fitxer id_rsa.");
         return;
       }
       final keyString = await keyFile.readAsString();
-
-      // 2. Configurar el par de claves. Nota: 'identities' suele esperar una lista [keyPair]
       final keyPair = SSHKeyPair.fromPem(keyString);
       
-      // 3. Establecer el socket y el cliente
       final socket = await SSHSocket.connect(
         selectedServer!.host, 
         int.parse(selectedServer!.port),
@@ -82,56 +81,67 @@ class _MainScreenState extends State<MainScreen> {
 
       final client = SSHClient(
         socket,
-        username: selectedServer!.nom, // Cambiar según corresponda
+        username: selectedServer!.nom, // Tu lógica original usa el nombre como user
         identities: keyPair, 
       );
 
-      // 4. Autenticar. Si falla, lanzará una excepción capturada por el catch.
       await client.authenticated;
-      
       _showMsg("Connectat amb èxit a ${selectedServer!.host}", isError: false);
       
-      // Aquí puedes navegar a tu pantalla de gestión de archivos pasándole el 'client'
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => FileExplorerScreen(
-            client: client, 
-            config: selectedServer!,
-          ),
+          builder: (context) => FileExplorerScreen(client: client, config: selectedServer!),
         ),
-     );
-
+      );
     } catch (e) {
       _showMsg("Error de connexió: $e");
     }
   }
 
-void _showMsg(String text, {bool isError = true}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(text), backgroundColor: isError ? Colors.red : Colors.green)
-  );
-}
+  void _showMsg(String text, {bool isError = true}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text), 
+        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      )
+    );
+  }
 
+  // --- DISEÑO MEJORADO ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA), // Fondo gris suave profesional
       body: Row(
         children: [
-          // BARRA LATERAL
+          // BARRA LATERAL ESTILIZADA
           Container(
-            width: 280,
-            decoration: const BoxDecoration(border: Border(right: BorderSide(color: Colors.black, width: 1.5))),
+            width: 300,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+            ),
             child: Column(
               children: [
                 _buildSidebarHeader(),
+                const Divider(height: 1),
                 Expanded(
-                  child: ListView.builder(
+                  child: ListView.separated(
                     itemCount: servers.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20),
                     itemBuilder: (context, i) => ListTile(
-                      tileColor: selectedServer == servers[i] ? Colors.grey.shade200 : null,
-                      title: Text(servers[i].nom),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                      selected: selectedServer == servers[i],
+                      selectedTileColor: Colors.blue.withOpacity(0.05),
+                      leading: Icon(Icons.dns_outlined, 
+                        color: selectedServer == servers[i] ? Colors.blue : Colors.blueGrey),
+                      title: Text(servers[i].nom, 
+                        style: TextStyle(
+                          fontWeight: selectedServer == servers[i] ? FontWeight.bold : FontWeight.normal,
+                          color: selectedServer == servers[i] ? Colors.blue.shade700 : Colors.black87,
+                        )),
                       onTap: () => _selectServer(servers[i]),
                     ),
                   ),
@@ -139,11 +149,41 @@ void _showMsg(String text, {bool isError = true}) {
               ],
             ),
           ),
-          // DETALLE (CONDICIONAL)
+          // PANEL CENTRAL / FORMULARIO
           Expanded(
             child: selectedServer == null 
-              ? const Center(child: Text("Selecciona un servidor per començar", style: TextStyle(color: Colors.grey)))
-              : _buildConfigForm(),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.terminal_outlined, size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      const Text("Selecciona un servidor per començar", 
+                        style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    ],
+                  ),
+                )
+              : Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(40),
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 550),
+                      padding: const EdgeInsets.all(40),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ],
+                      ),
+                      child: _buildConfigForm(),
+                    ),
+                  ),
+                ),
           ),
         ],
       ),
@@ -152,13 +192,13 @@ void _showMsg(String text, {bool isError = true}) {
 
   Widget _buildSidebarHeader() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(24, 60, 16, 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text("Servidors", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text("Servidors", 
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
           IconButton(
-            icon: const Icon(Icons.add_box, color: Colors.blue, size: 28),
             onPressed: () {
               setState(() {
                 final n = ServerConfig(nom: "Nou Servidor", host: "", port: "22", clau: "");
@@ -166,6 +206,7 @@ void _showMsg(String text, {bool isError = true}) {
                 _selectServer(n);
               });
             },
+            icon: const Icon(Icons.add_circle, color: Colors.blue, size: 32),
           )
         ],
       ),
@@ -173,43 +214,53 @@ void _showMsg(String text, {bool isError = true}) {
   }
 
   Widget _buildConfigForm() {
-    return Padding(
-      padding: const EdgeInsets.all(40.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Configuració SSH", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 30),
-          CustomInput(label: "Nom:", controller: nomCtrl, onChanged: (v) => setState(() => selectedServer!.nom = v)),
-          CustomInput(label: "Servidor:", controller: hostCtrl, onChanged: (v) => setState(() => selectedServer!.host = v)),
-          CustomInput(label: "Port:", controller: portCtrl, onChanged: (v) => setState(() => selectedServer!.port = v)),
-          CustomInput(
-            label: "Clau:", 
-            controller: clauCtrl, 
-            readOnly: true, 
-            onTap: () async {
-              FilePickerResult? r = await FilePicker.platform.pickFiles();
-              if (r != null) setState(() => clauCtrl.text = selectedServer!.clau = r.files.single.path!);
-            }
-          ),
-          const Spacer(),
-          _buildFooterButtons(),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.settings_outlined, color: Colors.blue),
+            ),
+            const SizedBox(width: 16),
+            const Text("Configuració SSH", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 32),
+        CustomInput(label: "Etiqueta del Node:", controller: nomCtrl, onChanged: (v) => setState(() => selectedServer!.nom = v)),
+        const SizedBox(height: 16),
+        CustomInput(label: "Adreça Host / IP:", controller: hostCtrl, onChanged: (v) => setState(() => selectedServer!.host = v)),
+        const SizedBox(height: 16),
+        CustomInput(label: "Port Port:", controller: portCtrl, onChanged: (v) => setState(() => selectedServer!.port = v)),
+        const SizedBox(height: 16),
+        CustomInput(
+          label: "Fitxer de Clau Privada:", 
+          controller: clauCtrl, 
+          readOnly: true, 
+          onTap: () async {
+            FilePickerResult? r = await FilePicker.platform.pickFiles();
+            if (r != null) setState(() => clauCtrl.text = selectedServer!.clau = r.files.single.path!);
+          }
+        ),
+        const SizedBox(height: 40),
+        _buildFooterButtons(),
+      ],
     );
   }
 
   Widget _buildFooterButtons() {
-  return ConnectionButtons(
-    onDelete: () {
-      setState(() {
-        servers.remove(selectedServer);
-        selectedServer = null;
-      });
-      _saveConfigs();
-    },
-    onSave: _saveConfigs,
-    onConnect: _connectSSH, // <--- Llamada a la lógica SSH
-  );
+    return ConnectionButtons(
+      onDelete: () {
+        setState(() {
+          servers.remove(selectedServer);
+          selectedServer = null;
+        });
+        _saveConfigs();
+      },
+      onSave: _saveConfigs,
+      onConnect: _connectSSH,
+    );
   }
 }
