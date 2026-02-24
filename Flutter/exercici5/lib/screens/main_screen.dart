@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:exercici5/screens/file_explorer_screen.dart';
 import 'package:exercici5/widgets/connection_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -91,6 +92,15 @@ class _MainScreenState extends State<MainScreen> {
       _showMsg("Connectat amb èxit a ${selectedServer!.host}", isError: false);
       
       // Aquí puedes navegar a tu pantalla de gestión de archivos pasándole el 'client'
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FileExplorerScreen(
+            client: client, 
+            config: selectedServer!,
+          ),
+        ),
+     );
 
     } catch (e) {
       _showMsg("Error de connexió: $e");
@@ -102,18 +112,6 @@ void _showMsg(String text, {bool isError = true}) {
     SnackBar(content: Text(text), backgroundColor: isError ? Colors.red : Colors.green)
   );
 }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red)
-    );
-  }
-
-  void _showSuccess(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.green)
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,35 +211,5 @@ void _showMsg(String text, {bool isError = true}) {
     onSave: _saveConfigs,
     onConnect: _connectSSH, // <--- Llamada a la lógica SSH
   );
-}
-
-  // --- BOTONES CON ESTILO DE LA IMAGEN ---
-  Widget _buildIconButton(IconData icon, VoidCallback onTap) => Container(
-    decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
-    child: IconButton(onPressed: onTap, icon: Icon(icon)),
-  );
-
-  Widget _buildTextButton(String text, VoidCallback onTap) => ElevatedButton(
-    onPressed: onTap,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.white, foregroundColor: Colors.black,
-      side: const BorderSide(color: Colors.grey),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18)
-    ),
-    child: Text(text),
-  );
-
-  Widget _buildConnectButton() => Container(
-    width: 200,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(8),
-      gradient: const LinearGradient(colors: [Color(0xFF42A5F5), Color(0xFF1976D2)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
-    ),
-    child: ElevatedButton(
-      onPressed: () {},
-      style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 18)),
-      child: const Text("Connectar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-    ),
-  );
+  }
 }
