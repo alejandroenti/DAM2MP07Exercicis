@@ -154,8 +154,19 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         title: Text(currentPath == '.' ? "Inici" : currentPath.split('/').last, style: const TextStyle(color: Colors.black)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.pie_chart, color: Colors.black),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ServerStatsScreen(client: widget.client, currentPath: currentPath, items: items,))),
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ServerStatsScreen(
+                    client: widget.client,
+                    currentPath: currentPath,
+                    items: items, // Ara sí, passem la llista real de fitxers
+                  ),
+                ),
+              );
+            },
           ),
           IconButton(icon: const Icon(Icons.refresh, color: Colors.black), onPressed: _load)],
       ),

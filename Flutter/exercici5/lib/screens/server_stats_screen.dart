@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 class ServerStatsScreen extends StatefulWidget {
   final SSHClient client;
   final String currentPath;
-  final List<SftpName> items; // Pasamos los items actuales para el Baobab
+  final List<SftpName> items;
 
   const ServerStatsScreen({
     super.key, 
@@ -20,215 +20,224 @@ class ServerStatsScreen extends StatefulWidget {
 }
 
 class _ServerStatsScreenState extends State<ServerStatsScreen> {
-  bool isRedirectActive = false;
-  final String targetPort = "3000";
+  // Estats per als ginys
+  bool isServerActive = true; 
+  bool isRedirectEnabled = false;
+  String serverStatus = "En funcionament"; // funcionament, aturat, reiniciant, error
+  Offset? _hoverPosition;
+  final TextEditingController _configController = TextEditingController(text: "srv-proxmox-01");
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Análisis de Sistema", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text("Anàlisi: ${widget.currentPath}"),
         backgroundColor: Colors.white,
-        elevation: 0,
         foregroundColor: Colors.black,
+        elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: SingleChildScrollView( // Permet l'scroll si no caben els ginys
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sección Baobab: Visualización de disco interactiva
-            Container(
-              padding: const EdgeInsets.all(20),
-              height: 400,
-              child: Column(
-                children: [
-                  const Text("Distribución de espacio en disco", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: CustomPaint(
-                      size: const Size(double.infinity, double.infinity),
-                      painter: RealBaobabPainter(items: widget.items),
-                    ),
+            // --- GRÀFIC BAOBAB INTERACTIU ---
+            const Text("Distribució de fitxers", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Center(
+              child: GestureDetector(
+                onPanUpdate: (d) => setState(() => _hoverPosition = d.localPosition),
+                onPanEnd: (_) => setState(() => _hoverPosition = null),
+                child: SizedBox(
+                  width: 250,
+                  height: 250,
+                  child: CustomPaint(
+                    painter: RealBaobabPainter(items: widget.items, hoverPosition: _hoverPosition),
                   ),
-                ],
+                ),
               ),
             ),
+            const SizedBox(height: 30),
 
-            // Widgets de Control Personalizados
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  _buildStatusSection(),
-                  const Divider(),
-                  _buildPortRedirectWidget(),
-                  const SizedBox(height: 20),
-                  _buildServiceHierarchy(),
-                ],
-              ),
+            // 1. Widget: Llista amb títols en negreta i items identats
+            const CustomIndentList(
+              title: "Dependències del Projecte",
+              subItems: ["NodeJS v18", "Express.js", "DartSSH2", "Flutter SDK"],
             ),
+            const Divider(),
+
+            // 2. Widget: Cercle d'estat (Canvas) + 5. Estat del servidor
+            _buildStatusHeader(),
+            const Divider(),
+
+            // 3. Widget: Camp de text amb títol i part editable
+            _buildEditableConfig(),
+            const Divider(),
+
+            // 4. Widget: Configuració Redirecció Port 80
+            _buildPortRedirector(),
+            
+            const SizedBox(height: 40), // Espai final per l'scroll
           ],
         ),
       ),
     );
   }
 
-  // Widget 2 & 5: Estado con Canvas y texto
-  Widget _buildStatusSection() {
-    return Row(
-      children: [
-        CustomPaint(
-          size: const Size(15, 15),
-          painter: StatusCircleCanvas(isActive: true), // Widget Canvas requerido
-        ),
-        const SizedBox(width: 10),
-        const Text("ESTADO: EN FUNCIONAMIENTO", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  // Widget 4: Redirección Port 80 -> 3000
-  Widget _buildPortRedirectWidget() {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-      child: Column(
+  // Giny 2 i 5: Cercle Canvas i Text d'estat
+  Widget _buildStatusHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          CustomPaint(
+            size: const Size(20, 20),
+            painter: StatusCircleCanvas(isActive: isServerActive),
+          ),
+          const SizedBox(width: 15),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Redirección Puerto 80", style: TextStyle(fontWeight: FontWeight.bold)),
-              Switch(
-                value: isRedirectActive,
-                onChanged: (val) => _togglePort80(val),
-              ),
+              const Text("ESTAT DEL SERVIDOR", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              Text(serverStatus.toUpperCase(), 
+                style: TextStyle(color: isServerActive ? Colors.green : Colors.red, fontWeight: FontWeight.w900)),
             ],
           ),
-          Text("Apunta el tráfico HTTP externo hacia el puerto interno $targetPort", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ],
       ),
     );
   }
 
-  Future<void> _togglePort80(bool active) async {
-    setState(() => isRedirectActive = active);
-    // Ejecuta la regla de NAT en el servidor
-    String cmd = active 
-      ? "sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port $targetPort"
-      : "sudo iptables -t nat -D PREROUTING -p tcp --dport 80 -j REDIRECT --to-port $targetPort";
-    await widget.client.run(cmd);
+  // Giny 3: Editable amb títol
+  Widget _buildEditableConfig() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Hostname del Servidor", style: TextStyle(fontWeight: FontWeight.bold)),
+          TextField(
+            controller: _configController,
+            decoration: const InputDecoration(hintText: "Escriu el nom..."),
+          ),
+        ],
+      ),
+    );
   }
 
-  // Widget 1: Lista con títulos e identación
-  Widget _buildServiceHierarchy() {
+  // Giny 4: Redirecció Port 80
+  Widget _buildPortRedirector() {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text("Redirecció Port 80 → 3000", style: TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: const Text("Activa el trànsit web estàndard cap a NodeJS"),
+      trailing: Switch(
+        value: isRedirectEnabled,
+        onChanged: (val) {
+          setState(() => isRedirectEnabled = val);
+          // Aquí aniria la lògica 'sudo iptables' que teníem abans
+        },
+      ),
+    );
+  }
+}
+
+// --- IMPLEMENTACIÓ DELS PAINTERS I WIDGETS AUXILIARS ---
+
+// 1. Widget: Llista identada
+class CustomIndentList extends StatelessWidget {
+  final String title;
+  final List<String> subItems;
+  const CustomIndentList({super.key, required this.title, required this.subItems});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Dependencias del Proyecto", style: TextStyle(fontWeight: FontWeight.bold)),
-        _indentItem("NodeJS Engine v18.x", 1),
-        _indentItem("Express Framework", 2),
-        _indentItem("Body-parser Middleware", 3),
-        _indentItem("PM2 Process Manager", 1),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        ...subItems.map((item) => Padding(
+          padding: const EdgeInsets.only(left: 24, bottom: 6),
+          child: InkWell(
+            onTap: () {}, // Seleccionable
+            child: Text("• $item", style: const TextStyle(fontSize: 14, color: Colors.black87)),
+          ),
+        )),
       ],
     );
   }
-
-  Widget _indentItem(String text, int level) {
-    return Padding(
-      padding: EdgeInsets.only(left: level * 20.0, top: 5),
-      child: Text("└─ $text", style: const TextStyle(fontSize: 13, color: Colors.black54)),
-    );
-  }
 }
 
-// --- CANVAS: EL GRÁFICO BAOBAB REAL ---
-
-class RealBaobabPainter extends CustomPainter {
-  final List<SftpName> items;
-  
-  RealBaobabPainter({required this.items});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (items.isEmpty) return;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final double radius = size.width * 0.35;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 45; // Gruix de l'anell
-
-    // 1. Calculem el pes total per fer els "formatgets" proporcionals
-    // Sumem la mida de tots els items (si és null, posem 1024 bytes per defecte)
-    double totalSize = items.fold(0, (sum, item) => sum + (item.attr.size ?? 1024));
-    double startAngle = -pi / 2; // Comencem a les 12 del rellotge
-
-    for (var i = 0; i < items.length; i++) {
-      final item = items[i];
-      final double itemSize = (item.attr.size ?? 1024).toDouble();
-      
-      // Calculem l'angle segons la proporció de mida
-      final sweepAngle = (itemSize / totalSize) * 2 * pi;
-
-      // Assignem colors segons el tipus (Directori vs Fitxer)
-      final bool isDir = (item.attr.mode?.value ?? 0) & 0x4000 != 0;
-      paint.color = isDir 
-          ? Colors.blue.withOpacity(0.7) 
-          : Colors.green.withOpacity(0.7);
-
-      // Dibuixem l'arc al Canvas
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        paint,
-      );
-
-      startAngle += sweepAngle;
-    }
-
-    // 2. Dibuixem el text central amb la mida total (Descriptiu)
-    _drawCenterText(canvas, center, totalSize);
-  }
-
-  void _drawCenterText(Canvas canvas, Offset center, double totalSize) {
-    final String readableSize = totalSize > 1024 * 1024 
-        ? "${(totalSize / (1024 * 1024)).toStringAsFixed(2)} MB"
-        : "${(totalSize / 1024).toStringAsFixed(1)} KB";
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: "TOTAL\n$readableSize",
-        style: const TextStyle(
-          color: Colors.black, 
-          fontWeight: FontWeight.bold, 
-          fontSize: 12,
-        ),
-      ),
-      textAlign: TextAlign.center,
-      textDirection: ui.TextDirection.ltr, // Aquí és on donava l'error
-    )..layout();
-
-    textPainter.paint(
-      canvas, 
-      center - Offset(textPainter.width / 2, textPainter.height / 2),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// Painter para el círculo de estado
+// 2. Widget: Cercle d'estat amb Canvas
 class StatusCircleCanvas extends CustomPainter {
   final bool isActive;
   StatusCircleCanvas({required this.isActive});
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = isActive ? Colors.green : Colors.red..style = PaintingStyle.fill;
+    final paint = Paint()
+      ..color = isActive ? Colors.green : Colors.red
+      ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, paint);
   }
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Painter del Baobab Interactiu (versió corregida amb hoverPosition)
+class RealBaobabPainter extends CustomPainter {
+  final List<SftpName> items;
+  final Offset? hoverPosition;
+  RealBaobabPainter({required this.items, this.hoverPosition});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (items.isEmpty) return;
+    final center = Offset(size.width / 2, size.height / 2);
+    final double radius = size.width * 0.35;
+    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = 35;
+
+    double totalSize = items.fold(0, (sum, item) => sum + (item.attr.size ?? 1024));
+    double startAngle = -pi / 2;
+    String? hoveredName;
+
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      double sweepAngle = ((item.attr.size ?? 1024) / totalSize) * 2 * pi;
+      if (sweepAngle < 0.1) sweepAngle = 0.1;
+
+      bool isHovered = false;
+      if (hoverPosition != null) {
+        final dist = (hoverPosition! - center).distance;
+        if (dist > radius - 20 && dist < radius + 20) {
+          double angle = atan2(hoverPosition!.dy - center.dy, hoverPosition!.dx - center.dx);
+          if (angle < -pi / 2) angle += 2 * pi;
+          if (angle >= startAngle && angle <= startAngle + sweepAngle) {
+            isHovered = true;
+            hoveredName = item.filename;
+          }
+        }
+      }
+
+      paint.color = Colors.primaries[i % Colors.primaries.length].withOpacity(isHovered ? 1.0 : 0.5);
+      paint.strokeWidth = isHovered ? 45 : 35;
+
+      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle + 0.02, sweepAngle - 0.02, false, paint);
+      startAngle += sweepAngle;
+    }
+    _drawCenterText(canvas, center, hoveredName ?? "${(totalSize / 1024).toStringAsFixed(0)} KB");
+  }
+
+  void _drawCenterText(Canvas canvas, Offset center, String text) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+      textAlign: TextAlign.center,
+      textDirection: ui.TextDirection.ltr,
+    )..layout(maxWidth: 80);
+    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant RealBaobabPainter oldDelegate) => oldDelegate.hoverPosition != hoverPosition;
 }
