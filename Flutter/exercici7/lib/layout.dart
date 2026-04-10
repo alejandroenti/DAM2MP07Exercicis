@@ -23,11 +23,12 @@ class _LayoutState extends State<Layout> {
 
     final random = Random();
     final placeholders = [
-      'Dibuixa una línia 10, 50 i 100, 25 ...',
-      'Dibuixa dues linies i dos cercles',
-      'Dibuixa un cercle amb centre a 150, 200 i radi 50 ...',
-      'Fes un rectangle entre x=10, y=20 i x=100, y=200 ...',
-      'Dibuixa un cercle a la posició 50,100 de radi 34.66',
+      'Dibuixa un cercle al centre del dibuix ...',
+      'Dibuixa una línia diagonal del quadre ...',
+      'Esborra l\'últim cercle',
+      'Canvia el color del rectangle 1 a vermell',
+      'Dibuixa un cercle al 50% de l\'amplada i 25% de l\'alçada',
+      'Selecciona l\'element 2',
     ];
 
     return CupertinoPageScaffold(
@@ -41,14 +42,28 @@ class _LayoutState extends State<Layout> {
                 children: [
                   Expanded(
                     flex: 2,
-                    child: Container(
-                      color: CupertinoColors.systemGrey5,
-                      child: CustomPaint(
-                        painter: CanvasPainter(
-                          drawables: appData.drawables,
-                        ),
-                        child: Container(),
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          appData.updateCanvasSize(
+                            Size(constraints.maxWidth, constraints.maxHeight),
+                          );
+                        });
+                        return GestureDetector(
+                          onTapDown: (details) {
+                            appData.selectDrawableAt(details.localPosition);
+                          },
+                          child: Container(
+                            color: CupertinoColors.systemGrey5,
+                            child: CustomPaint(
+                              painter: CanvasPainter(
+                                drawables: appData.drawables,
+                              ),
+                              child: Container(),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Expanded(

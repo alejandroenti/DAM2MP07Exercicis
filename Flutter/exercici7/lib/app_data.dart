@@ -22,6 +22,16 @@ class AppData extends ChangeNotifier {
   StreamSubscription<String>? _streamSubscription;
 
   final List<Drawable> drawables = [];
+  int _nextId = 1;
+  Size _canvasSize = const Size(800, 600);
+
+  Size get canvasSize => _canvasSize;
+
+  void updateCanvasSize(Size size) {
+    if (size != _canvasSize) {
+      _canvasSize = size;
+    }
+  }
 
   String get responseText =>
       _isInitial ? "..." : (_isLoading ? "Esperant ..." : _responseText);
@@ -42,6 +52,71 @@ class AppData extends ChangeNotifier {
   void addDrawable(Drawable drawable) {
     drawables.add(drawable);
     notifyListeners();
+  }
+
+  int getNextId() => _nextId++;
+
+  void selectDrawableAt(Offset point) {
+    // Desseleccionar tot primer
+    for (var d in drawables) {
+      d.isSelected = false;
+    }
+    // Seleccionar el primer que faci hit (de dalt a baix = últim afegit primer)
+    for (var i = drawables.length - 1; i >= 0; i--) {
+      if (drawables[i].hitTest(point)) {
+        drawables[i].isSelected = true;
+        break;
+      }
+    }
+    notifyListeners();
+  }
+
+  void selectById(int id) {
+    for (var d in drawables) {
+      d.isSelected = (d.id == id);
+    }
+    notifyListeners();
+  }
+
+  void deselectAll() {
+    for (var d in drawables) {
+      d.isSelected = false;
+    }
+    notifyListeners();
+  }
+
+  void deleteById(int id) {
+    drawables.removeWhere((d) => d.id == id);
+    notifyListeners();
+  }
+
+  void deleteSelected() {
+    drawables.removeWhere((d) => d.isSelected);
+    notifyListeners();
+  }
+
+  Drawable? findById(int id) {
+    for (var d in drawables) {
+      if (d.id == id) return d;
+    }
+    return null;
+  }
+
+  String _buildDrawablesList() {
+    if (drawables.isEmpty) return "No hi ha elements al canvas.";
+    final sb = StringBuffer("Elements actuals al canvas:\n");
+    for (var d in drawables) {
+      if (d is Line) {
+        sb.writeln("- [id=${d.id}] Línia de (${d.start.dx},${d.start.dy}) a (${d.end.dx},${d.end.dy})");
+      } else if (d is Circle) {
+        sb.writeln("- [id=${d.id}] Cercle centre=(${d.center.dx},${d.center.dy}) radi=${d.radius}");
+      } else if (d is Rectangle) {
+        sb.writeln("- [id=${d.id}] Rectangle de (${d.topLeft.dx},${d.topLeft.dy}) a (${d.bottomRight.dx},${d.bottomRight.dy})");
+      } else if (d is TextElement) {
+        sb.writeln("- [id=${d.id}] Text \"${d.text}\" a (${d.position.dx},${d.position.dy})");
+      }
+    }
+    return sb.toString();
   }
 
   Future<void> callStream({required String question}) async {
@@ -187,10 +262,14 @@ class AppData extends ChangeNotifier {
     _isInitial = false;
     setLoading(true);
 
+    final canvasInfo = "La mida del canvas és ${_canvasSize.width.toInt()}x${_canvasSize.height.toInt()} píxels.";
+    final elementsList = _buildDrawablesList();
+
     final body = {
       "model": functionCallingModel,
       "stream": false,
       "messages": [
+        {"role": "system", "content": "$systemPrompt\n\n$canvasInfo\n\n$elementsList"},
         {"role": "user", "content": userPrompt}
       ],
       "tools": tools
@@ -312,6 +391,7 @@ class AppData extends ChangeNotifier {
         final gradient = parseGradient(parameters);
         addDrawable(
           Circle(
+            id: getNextId(),
             center: Offset(dx, dy),
             radius: max(0.0, radius),
             strokeColor: strokeColor,
@@ -342,6 +422,7 @@ class AppData extends ChangeNotifier {
         final start = Offset(startX, startY);
         final end = Offset(endX, endY);
         addDrawable(Line(
+          id: getNextId(),
           start: start,
           end: end,
           color: lineColor,
@@ -368,6 +449,7 @@ class AppData extends ChangeNotifier {
           final rectFillColor = parseHexColor(parameters['fillColor']);
           final rectGradient = parseGradient(parameters);
           addDrawable(Rectangle(
+            id: getNextId(),
             topLeft: topLeft,
             bottomRight: bottomRight,
             strokeColor: rectStrokeColor,
@@ -401,6 +483,7 @@ class AppData extends ChangeNotifier {
         final fontStyle =
             fontStyleStr == 'italic' ? FontStyle.italic : FontStyle.normal;
         addDrawable(TextElement(
+          id: getNextId(),
           text: text,
           position: Offset(tx, ty),
           color: textColor,
@@ -411,8 +494,86 @@ class AppData extends ChangeNotifier {
         ));
         break;
 
+      case 'select_element':
+        if (parameters['id'] != null) {
+          final id = parseDouble(parameters['id']).toInt();
+          selectById(id);
+        }
+        break;
+
+      case 'deselect_all':
+        deselectAll();
+        break;
+
+      case 'delete_element':
+        if (parameters['id'] != null) {
+          final id = parseDouble(parameters['id']).toInt();
+          deleteById(id);
+        }
+        break;
+
+      case 'delete_selected':
+        deleteSelected();
+        break;
+
+      case 'modify_element':
+        if (parameters['id'] != null) {
+          final id = parseDouble(parameters['id']).toInt();
+          final element = findById(id);
+          if (element != null) {
+            _applyModifications(element, parameters);
+            notifyListeners();
+          } else {
+            print("Element amb id=$id no trobat");
+          }
+        }
+        break;
+
       default:
         print("Unknown function call: ${fixedJson['name']}");
+    }
+  }
+
+  void _applyModifications(Drawable element, Map<String, dynamic> params) {
+    if (element is Line) {
+      if (params['startX'] != null) element.start = Offset(parseDouble(params['startX']), element.start.dy);
+      if (params['startY'] != null) element.start = Offset(element.start.dx, parseDouble(params['startY']));
+      if (params['endX'] != null) element.end = Offset(parseDouble(params['endX']), element.end.dy);
+      if (params['endY'] != null) element.end = Offset(element.end.dx, parseDouble(params['endY']));
+      if (params['color'] != null) element.color = parseHexColor(params['color']) ?? element.color;
+      if (params['strokeWidth'] != null) element.strokeWidth = parseDouble(params['strokeWidth']);
+    } else if (element is Circle) {
+      if (params['x'] != null) element.center = Offset(parseDouble(params['x']), element.center.dy);
+      if (params['y'] != null) element.center = Offset(element.center.dx, parseDouble(params['y']));
+      if (params['radius'] != null) element.radius = parseDouble(params['radius']);
+      if (params['strokeColor'] != null) element.strokeColor = parseHexColor(params['strokeColor']) ?? element.strokeColor;
+      if (params['strokeWidth'] != null) element.strokeWidth = parseDouble(params['strokeWidth']);
+      if (params['fillColor'] != null) element.fillColor = parseHexColor(params['fillColor']);
+      final newGradient = parseGradient(params);
+      if (newGradient != null) element.gradient = newGradient;
+    } else if (element is Rectangle) {
+      if (params['topLeftX'] != null) element.topLeft = Offset(parseDouble(params['topLeftX']), element.topLeft.dy);
+      if (params['topLeftY'] != null) element.topLeft = Offset(element.topLeft.dx, parseDouble(params['topLeftY']));
+      if (params['bottomRightX'] != null) element.bottomRight = Offset(parseDouble(params['bottomRightX']), element.bottomRight.dy);
+      if (params['bottomRightY'] != null) element.bottomRight = Offset(element.bottomRight.dx, parseDouble(params['bottomRightY']));
+      if (params['strokeColor'] != null) element.strokeColor = parseHexColor(params['strokeColor']) ?? element.strokeColor;
+      if (params['strokeWidth'] != null) element.strokeWidth = parseDouble(params['strokeWidth']);
+      if (params['fillColor'] != null) element.fillColor = parseHexColor(params['fillColor']);
+      final newGradient = parseGradient(params);
+      if (newGradient != null) element.gradient = newGradient;
+    } else if (element is TextElement) {
+      if (params['x'] != null) element.position = Offset(parseDouble(params['x']), element.position.dy);
+      if (params['y'] != null) element.position = Offset(element.position.dx, parseDouble(params['y']));
+      if (params['text'] != null) element.text = params['text'].toString();
+      if (params['color'] != null) element.color = parseHexColor(params['color']) ?? element.color;
+      if (params['fontSize'] != null) element.fontSize = parseDouble(params['fontSize']);
+      if (params['fontFamily'] != null) element.fontFamily = params['fontFamily'].toString();
+      if (params['fontWeight'] != null) {
+        element.fontWeight = params['fontWeight'].toString().toLowerCase() == 'bold' ? FontWeight.bold : FontWeight.normal;
+      }
+      if (params['fontStyle'] != null) {
+        element.fontStyle = params['fontStyle'].toString().toLowerCase() == 'italic' ? FontStyle.italic : FontStyle.normal;
+      }
     }
   }
 }

@@ -11,6 +11,9 @@ class CanvasPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (var drawable in drawables) {
       drawable.draw(canvas);
+      if (drawable.isSelected) {
+        drawable.drawSelectionHighlight(canvas);
+      }
     }
   }
 
