@@ -252,6 +252,36 @@ class AppData extends ChangeNotifier {
     return min + Random().nextDouble() * (max - min);
   }
 
+  Color? parseHexColor(dynamic value) {
+    if (value == null) return null;
+    String hex = value.toString().trim().replaceAll('#', '');
+    if (hex.isEmpty) return null;
+    if (hex.length == 6) hex = 'FF$hex';
+    if (hex.length == 8) {
+      final intVal = int.tryParse(hex, radix: 16);
+      if (intVal != null) return Color(intVal);
+    }
+    return null;
+  }
+
+  GradientInfo? parseGradient(Map<String, dynamic> parameters) {
+    final gradientColors = parameters['gradientColors'];
+    if (gradientColors == null || gradientColors is! List || gradientColors.length < 2) {
+      return null;
+    }
+    final colors = <Color>[];
+    for (final c in gradientColors) {
+      final parsed = parseHexColor(c);
+      if (parsed != null) {
+        colors.add(parsed);
+      }
+    }
+    if (colors.length < 2) return null;
+    final typeStr = (parameters['gradientType'] ?? 'linear').toString().toLowerCase();
+    final type = typeStr == 'radial' ? GradientType.radial : GradientType.linear;
+    return GradientInfo(type: type, colors: colors);
+  }
+
   Future<void> _processFunctionCall(Map<String, dynamic> functionCall) async {
     final fixedJson = await fixJsonInStrings(functionCall);
     final parametersData = fixedJson['arguments'];
@@ -274,10 +304,20 @@ class AppData extends ChangeNotifier {
         final radius = parameters['radius'] != null
             ? parseDouble(parameters['radius'])
             : 10.0;
+        final strokeColor = parseHexColor(parameters['strokeColor']) ?? Colors.black;
+        final strokeWidth = parameters['strokeWidth'] != null
+            ? parseDouble(parameters['strokeWidth'])
+            : 2.0;
+        final fillColor = parseHexColor(parameters['fillColor']);
+        final gradient = parseGradient(parameters);
         addDrawable(
           Circle(
             center: Offset(dx, dy),
             radius: max(0.0, radius),
+            strokeColor: strokeColor,
+            strokeWidth: strokeWidth,
+            fillColor: fillColor,
+            gradient: gradient,
           ),
         );
         break;
@@ -295,9 +335,18 @@ class AppData extends ChangeNotifier {
         final endY = parameters['endY'] != null
             ? parseDouble(parameters['endY'])
             : _randomBetween(10.0, 100.0);
+        final lineColor = parseHexColor(parameters['color']) ?? Colors.black;
+        final lineStrokeWidth = parameters['strokeWidth'] != null
+            ? parseDouble(parameters['strokeWidth'])
+            : 2.0;
         final start = Offset(startX, startY);
         final end = Offset(endX, endY);
-        addDrawable(Line(start: start, end: end));
+        addDrawable(Line(
+          start: start,
+          end: end,
+          color: lineColor,
+          strokeWidth: lineStrokeWidth,
+        ));
         break;
 
       case 'draw_rectangle':
@@ -311,10 +360,55 @@ class AppData extends ChangeNotifier {
           final bottomRightY = parseDouble(parameters['bottomRightY']);
           final topLeft = Offset(topLeftX, topLeftY);
           final bottomRight = Offset(bottomRightX, bottomRightY);
-          addDrawable(Rectangle(topLeft: topLeft, bottomRight: bottomRight));
+          final rectStrokeColor =
+              parseHexColor(parameters['strokeColor']) ?? Colors.black;
+          final rectStrokeWidth = parameters['strokeWidth'] != null
+              ? parseDouble(parameters['strokeWidth'])
+              : 2.0;
+          final rectFillColor = parseHexColor(parameters['fillColor']);
+          final rectGradient = parseGradient(parameters);
+          addDrawable(Rectangle(
+            topLeft: topLeft,
+            bottomRight: bottomRight,
+            strokeColor: rectStrokeColor,
+            strokeWidth: rectStrokeWidth,
+            fillColor: rectFillColor,
+            gradient: rectGradient,
+          ));
         } else {
           print("Missing rectangle properties: $parameters");
         }
+        break;
+
+      case 'draw_text':
+        final text = parameters['text']?.toString() ?? 'Text';
+        final tx =
+            parameters['x'] != null ? parseDouble(parameters['x']) : 50.0;
+        final ty =
+            parameters['y'] != null ? parseDouble(parameters['y']) : 50.0;
+        final fontSize = parameters['fontSize'] != null
+            ? parseDouble(parameters['fontSize'])
+            : 14.0;
+        final textColor = parseHexColor(parameters['color']) ?? Colors.black;
+        final fontFamily =
+            parameters['fontFamily']?.toString() ?? 'Roboto';
+        final fontWeightStr =
+            (parameters['fontWeight'] ?? 'normal').toString().toLowerCase();
+        final fontWeight =
+            fontWeightStr == 'bold' ? FontWeight.bold : FontWeight.normal;
+        final fontStyleStr =
+            (parameters['fontStyle'] ?? 'normal').toString().toLowerCase();
+        final fontStyle =
+            fontStyleStr == 'italic' ? FontStyle.italic : FontStyle.normal;
+        addDrawable(TextElement(
+          text: text,
+          position: Offset(tx, ty),
+          color: textColor,
+          fontSize: fontSize,
+          fontFamily: fontFamily,
+          fontWeight: fontWeight,
+          fontStyle: fontStyle,
+        ));
         break;
 
       default:
